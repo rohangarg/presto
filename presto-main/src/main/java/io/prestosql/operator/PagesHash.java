@@ -71,6 +71,8 @@ public final class PagesHash
         // We will process addresses in batches, to save memory on array of hashes.
         int positionsInStep = Math.min(addresses.size() + 1, (int) CACHE_SIZE.toBytes() / Integer.SIZE);
         long[] positionToFullHashes = new long[positionsInStep];
+        int[] hashes = new int[positionsInStep];
+        boolean[] isNull = new boolean[positionsInStep];
         long hashCollisionsLocal = 0;
 
         for (int step = 0; step * positionsInStep <= addresses.size(); step++) {
@@ -86,17 +88,23 @@ public final class PagesHash
                 long hash = readHashPosition(realPosition);
                 positionToFullHashes[position] = hash;
                 positionToHashes[realPosition] = (byte) hash;
+                isNull[position] = isPositionNull(realPosition);
+            }
+
+            for (int position = 0; position < stepSize; position++) {
+                long hash = positionToFullHashes[position];
+                hashes[position] = getHashPosition(hash, mask);
             }
 
             // index pages
             for (int position = 0; position < stepSize; position++) {
                 int realPosition = position + stepBeginPosition;
-                if (isPositionNull(realPosition)) {
+                if (isNull[position]) {
                     continue;
                 }
 
                 long hash = positionToFullHashes[position];
-                int pos = getHashPosition(hash, mask);
+                int pos = hashes[position];
 
                 // look for an empty slot or a slot containing this key
                 while (key[pos] != -1) {
